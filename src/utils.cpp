@@ -24,7 +24,7 @@ bool connect_wifi(const char* ssid, const char* pass) {
   printf("\n");
 
   if (state) {
-    printf("Connected to: %s, IP address: %s\n", ssid, WiFi.localIP());
+    printf("Connected to: %s, IP address: %d.%d.%d.%d\n", ssid, WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
   } else {
     printf("Connection failed\n");
   }

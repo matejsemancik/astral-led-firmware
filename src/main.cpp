@@ -25,7 +25,7 @@ ArtnetWifi artnet;
 const int start_universe = 0;
 
 void led_runner(void* pvparams) {
-  printf("FastLED runner init\n");
+  printf("FastLED runner started.\n");
 
   FastLED.addLeds<WS2812B, LEDS_DATA_PIN, RGB>(pixels, NUM_LEDS);
   FastLED.setBrightness(255);
@@ -47,7 +47,7 @@ void dmx_callback(uint16_t universe,
                   }
 
 void artnet_runner(void* pvparams) {
-  printf("ArtNet runner init\n");
+  printf("ArtNet runner started.\n");
   artnet.begin();
   artnet.setArtDmxCallback(dmx_callback);
 
