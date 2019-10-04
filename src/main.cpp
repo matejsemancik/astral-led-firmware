@@ -4,7 +4,7 @@
 #include <WiFi.h>
 #include <WiFiUdp.h>
 
-#include "passwords.h"
+#include "private/private_constants.h"
 #include "utils.h"
 
 // FastLED stuff
