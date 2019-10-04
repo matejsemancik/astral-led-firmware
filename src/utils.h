@@ -1,0 +1,1 @@
+bool connect_wifi(const char* ssid, const char* pass);
