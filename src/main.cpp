@@ -12,28 +12,23 @@
 #define LEDS_DATA_PIN 27
 #define NUM_LEDS 150  // 30 LEDS x 5m on strip
 #define FPS 60
-CRGB pixels[NUM_LEDS];
+CRGB leds[NUM_LEDS];
 
 // ArtNet stuff
 
 const char* wifi_ssid = WIFI_SSID;
 const char* wifi_pass = WIFI_PASSWORD;
-// Total number of DMX channels (1 LED = 3 channels)
-const uint16_t num_channels = NUM_LEDS * 3;
-
 ArtnetWifi artnet;
-const int start_universe = 0;
+const uint16_t num_channels = NUM_LEDS * 3;  // 1 LED = 3 channels
 
 void led_runner(void* pvparams) {
   printf("FastLED runner started.\n");
 
-  FastLED.addLeds<WS2812B, LEDS_DATA_PIN, RGB>(pixels, NUM_LEDS);
+  FastLED.addLeds<WS2812B, LEDS_DATA_PIN, GBR>(leds, NUM_LEDS);
   FastLED.setBrightness(255);
 
   while (1) {
-    uint8_t time = millis() / 10;
-    uint8_t sin = sin8(time);
-    fill_solid(pixels, NUM_LEDS, CHSV(0, 255, sin));
+    FastLED.setBrightness(200);
     FastLED.show();
     FastLED.delay(1000 / FPS);
   }
@@ -43,8 +38,20 @@ void dmx_callback(uint16_t universe,
                   uint16_t length,
                   uint8_t sequence,
                   uint8_t* data) {
-                    // TODO add implementation
-                  }
+  
+  printf("universe: %d, len: %d\n", universe, length);
+  if (universe == 0) {
+    // FFT data incoming
+    return;
+  }
+
+  if (universe == 1 && length <= NUM_LEDS * 3) {
+    fill_solid(leds, NUM_LEDS, CRGB::Black);
+    for (uint16_t i = 0; i < length / 3; i++) {
+      leds[i] = CRGB(data[i * 3], data[i * 3 + 1], data[i * 3 + 2]);
+    }
+  }
+}
 
 void artnet_runner(void* pvparams) {
   printf("ArtNet runner started.\n");

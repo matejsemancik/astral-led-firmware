@@ -10,18 +10,16 @@ bool connect_wifi(const char* ssid, const char* pass) {
   printf("Connecting to WiFi...\n");
 
   // Wait for connection
-  printf("Connecting");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    printf(".");
+    printf(".\n");
+    // printf(".");
     if (i > 20) {
       state = false;
       break;
     }
     i++;
   }
-
-  printf("\n");
 
   if (state) {
     printf("Connected to: %s, IP address: %d.%d.%d.%d\n", ssid, WiFi.localIP()[0], WiFi.localIP()[1], WiFi.localIP()[2], WiFi.localIP()[3]);
