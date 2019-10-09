@@ -24,7 +24,7 @@ const uint16_t num_channels = NUM_LEDS * 3;  // 1 LED = 3 channels
 void led_runner(void* pvparams) {
   printf("FastLED runner started.\n");
 
-  FastLED.addLeds<WS2812B, LEDS_DATA_PIN, GBR>(leds, NUM_LEDS);
+  FastLED.addLeds<WS2812B, LEDS_DATA_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setBrightness(255);
 
   while (1) {
