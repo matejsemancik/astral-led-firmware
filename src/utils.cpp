@@ -7,7 +7,7 @@ bool connect_wifi(const char* ssid, const char* pass) {
   int i = 0;
 
   WiFi.begin(ssid, pass);
-  printf("Connecting to WiFi...\n");
+  printf("Connecting to %s ...\n", ssid);
 
   // Wait for connection
   while (WiFi.status() != WL_CONNECTED) {
