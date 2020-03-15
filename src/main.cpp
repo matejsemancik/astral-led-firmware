@@ -9,32 +9,39 @@
 
 // FastLED stuff
 
-#define NUM_BRANCHES 3
-#define LEDS_PER_BRANCH 150
-CRGB leds[NUM_BRANCHES][LEDS_PER_BRANCH];
+#define NUM_STRIPS 3
+#define NUM_LEDS_PER_STRIP 150
+#define NUM_LEDS NUM_STRIPS * NUM_LEDS_PER_STRIP
+CRGB leds[NUM_LEDS];
+uint8_t led_brightness = 255;
 
 // ArtNet stuff
 
-#define UNIVERSE_START 2
 const char* wifi_ssid = WIFI_SSID;
 const char* wifi_pass = WIFI_PASSWORD;
 ArtnetWifi artnet;
 
-int prev_data_len = 0;
-const int start_universe = 0;
-
+uint8_t fastled_controller = 0;
+uint16_t fastled_offset = 0;
+uint16_t num_pixels = 0;
 void dmx_callback(uint16_t universe,
                   uint16_t length,
                   uint8_t sequence,
                   uint8_t* data) {
-  for (int i = 0; i < length / 3; i++) {
-    int led = i + (universe - start_universe) * (prev_data_len / 3);
-    if (led < LEDS_PER_BRANCH) {
-      leds[universe][led] = CRGB(data[i * 3], data[i * 3 + 1], data[i * 3 + 2]);
-    }
+  fastled_controller = universe;
+  fastled_offset = universe * NUM_LEDS_PER_STRIP;
+
+  if (fastled_controller >= NUM_STRIPS) {
+    printf("Universe out of bounds: %d\n", universe);
+    return;
   }
-  prev_data_len = length;
-  FastLED.show();
+
+  for (uint16_t n = 0; n < NUM_LEDS_PER_STRIP; n++) {
+    leds[n + fastled_offset] =
+        CRGB(data[n * 3], data[n * 3 + 1], data[n * 3 + 2]);
+  }
+
+  FastLED[fastled_controller].showLeds(led_brightness);
 }
 
 void artnet_task(void* pvparams) {
@@ -42,9 +49,15 @@ void artnet_task(void* pvparams) {
   artnet.begin();
   artnet.setArtDmxCallback(dmx_callback);
 
-  FastLED.addLeds<WS2812B, 12, GRB>(leds[0], LEDS_PER_BRANCH);
-  FastLED.addLeds<WS2812B, 14, GRB>(leds[1], LEDS_PER_BRANCH);
-  FastLED.addLeds<WS2812B, 27, GRB>(leds[2], LEDS_PER_BRANCH);
+  FastLED.addLeds<WS2812B, 12, GRB>(leds, NUM_LEDS_PER_STRIP * 0,
+                                    NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<WS2812B, 14, GRB>(leds, NUM_LEDS_PER_STRIP * 1,
+                                    NUM_LEDS_PER_STRIP);
+  FastLED.addLeds<WS2812B, 27, GRB>(leds, NUM_LEDS_PER_STRIP * 2,
+                                    NUM_LEDS_PER_STRIP);
+
+  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  FastLED.show();
 
   while (1) {
     artnet.read();
