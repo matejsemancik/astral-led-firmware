@@ -11,7 +11,7 @@
 
 #define NUM_STRIPS 3
 #define NUM_LEDS_PER_STRIP 150
-#define NUM_LEDS NUM_STRIPS * NUM_LEDS_PER_STRIP
+#define NUM_LEDS NUM_STRIPS* NUM_LEDS_PER_STRIP
 CRGB leds[NUM_LEDS];
 uint8_t led_brightness = 255;
 
@@ -24,10 +24,16 @@ ArtnetWifi artnet;
 uint8_t fastled_controller = 0;
 uint16_t fastled_offset = 0;
 uint16_t num_pixels = 0;
+
+uint32_t packets_received = 0;
+uint32_t millis_since_last_record = 0;
+
 void dmx_callback(uint16_t universe,
                   uint16_t length,
                   uint8_t sequence,
                   uint8_t* data) {
+  packets_received++;
+
   fastled_controller = universe;
   fastled_offset = universe * NUM_LEDS_PER_STRIP;
 
@@ -64,12 +70,26 @@ void artnet_task(void* pvparams) {
   }
 }
 
+void monitor_task(void* pvparams) {
+  printf("Monitor task started.\n");
+  while(1) {
+    if (millis() > millis_since_last_record + 1000) {
+      millis_since_last_record = millis();
+      printf("Packet rate: %d packets / s\n", packets_received);
+      packets_received = 0;
+    }
+  }
+}
+
 void setup() {
   bool wifi_connected = connect_wifi(wifi_ssid, wifi_pass);
 
   if (wifi_connected) {
     xTaskCreatePinnedToCore(artnet_task, "ArtNet task", 4096, NULL, 1, NULL,
                             CONFIG_ARDUINO_RUNNING_CORE);
+
+    // xTaskCreatePinnedToCore(monitor_task, "Monitor task", 4096, NULL, 1, NULL,
+    //                         CONFIG_ARDUINO_RUNNING_CORE);
   }
 }
 
