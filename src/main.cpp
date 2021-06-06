@@ -7,77 +7,80 @@
 #include "private/private_constants.h"
 #include "utils.h"
 
-// FastLED stuff
-
-#define NUM_STRIPS 3
-#define NUM_LEDS_PER_STRIP 150
-#define NUM_LEDS NUM_STRIPS* NUM_LEDS_PER_STRIP
-CRGB leds[NUM_LEDS];
-uint8_t led_brightness = 255;
-
-// ArtNet stuff
-
-const char* wifi_ssid = WIFI_SSID;
-const char* wifi_pass = WIFI_PASSWORD;
+const char *wifi_ssid = WIFI_SSID;
+const char *wifi_pass = WIFI_PASSWORD;
 ArtnetWifi artnet;
 
-uint8_t fastled_controller = 0;
-uint16_t fastled_offset = 0;
-uint16_t num_pixels = 0;
+struct mapping_t {
+  uint8_t universe;
+  uint16_t buffer_start;
+  uint16_t universe_start;
+  uint16_t pixel_count;
+};
 
-uint32_t packets_received = 0;
-uint32_t millis_since_last_record = 0;
+#define FASTLED_BRIGHTNESS 255
+// 1 pixel = RGB = 3 Art-Net fixture channels
+#define COLOR_CHANNELS 3
+// Red channel offset
+#define R_OFF 0
+// Green channel offset
+#define G_OFF 1
+// Blue channel offset
+#define B_OFF 2
+#define NUM_UNIVERSES 3
+// Max number of LEDS in a single universe, must be <= 170 (<= 512 / 3)
+#define NUM_LEDS_PER_UNIVERSE 120
+#define BUFFER_SIZE NUM_UNIVERSES *NUM_LEDS_PER_UNIVERSE
 
-void dmx_callback(uint16_t universe,
-                  uint16_t length,
-                  uint8_t sequence,
-                  uint8_t* data) {
-  packets_received++;
+CRGB led_buffer[BUFFER_SIZE];
+// Make sure you have a mapping for each universe
+mapping_t mappings[NUM_UNIVERSES] = {
+    {.universe = 0, .buffer_start = 0, .universe_start = 0, .pixel_count = 120},
+    {.universe = 1,
+     .buffer_start = 120,
+     .universe_start = 0,
+     .pixel_count = 120},
+    {.universe = 2,
+     .buffer_start = 240,
+     .universe_start = 0,
+     .pixel_count = 60}};
 
-  fastled_controller = universe;
-  fastled_offset = universe * NUM_LEDS_PER_STRIP;
+void dmx_callback(uint16_t universe, uint16_t length, uint8_t sequence,
+                  uint8_t *data) {
 
-  if (fastled_controller >= NUM_STRIPS) {
-    printf("Universe out of bounds: %d\n", universe);
+  if (universe >= NUM_UNIVERSES) {
+    printf("Universe (%d) out of bounds\n", universe);
     return;
   }
 
-  for (uint16_t n = 0; n < NUM_LEDS_PER_STRIP; n++) {
-    leds[n + fastled_offset] =
-        CRGB(data[n * 3], data[n * 3 + 1], data[n * 3 + 2]);
+  mapping_t mapping = mappings[universe];
+  for (uint16_t pixel = 0; pixel < mapping.pixel_count; pixel++) {
+    led_buffer[mapping.buffer_start + pixel] =
+        CRGB(data[mapping.universe_start + (pixel * COLOR_CHANNELS + R_OFF)],
+             data[mapping.universe_start + (pixel * COLOR_CHANNELS + G_OFF)],
+             data[mapping.universe_start + (pixel * COLOR_CHANNELS + B_OFF)]);
   }
 
-  FastLED[fastled_controller].showLeds(led_brightness);
+  FastLED.show();
 }
 
-void artnet_task(void* pvparams) {
+void artnet_task(void *pvparams) {
   printf("ArtNet task started.\n");
   artnet.begin();
   artnet.setArtDmxCallback(dmx_callback);
 
-  FastLED.addLeds<WS2812B, 12, GRB>(leds, NUM_LEDS_PER_STRIP * 0,
-                                    NUM_LEDS_PER_STRIP);
-  FastLED.addLeds<WS2812B, 14, GRB>(leds, NUM_LEDS_PER_STRIP * 1,
-                                    NUM_LEDS_PER_STRIP);
-  FastLED.addLeds<WS2812B, 27, GRB>(leds, NUM_LEDS_PER_STRIP * 2,
-                                    NUM_LEDS_PER_STRIP);
+  // LED Mapping
+  FastLED.addLeds<WS2812B, 18, GRB>(led_buffer, 0, 300);
 
-  fill_solid(leds, NUM_LEDS, CRGB::Black);
+  // Global Brightness
+  FastLED.setBrightness(FASTLED_BRIGHTNESS);
+
+  // Clean up canvas
+  fill_solid(led_buffer, BUFFER_SIZE, CRGB::Black);
   FastLED.show();
 
   while (1) {
     artnet.read();
-  }
-}
-
-void monitor_task(void* pvparams) {
-  printf("Monitor task started.\n");
-  while(1) {
-    if (millis() > millis_since_last_record + 1000) {
-      millis_since_last_record = millis();
-      printf("Packet rate: %d packets / s\n", packets_received);
-      packets_received = 0;
-    }
   }
 }
 
@@ -87,9 +90,6 @@ void setup() {
   if (wifi_connected) {
     xTaskCreatePinnedToCore(artnet_task, "ArtNet task", 4096, NULL, 1, NULL,
                             CONFIG_ARDUINO_RUNNING_CORE);
-
-    // xTaskCreatePinnedToCore(monitor_task, "Monitor task", 4096, NULL, 1, NULL,
-    //                         CONFIG_ARDUINO_RUNNING_CORE);
   }
 }
 
