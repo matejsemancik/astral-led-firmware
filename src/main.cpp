@@ -18,7 +18,10 @@ struct mapping_t {
   uint16_t pixel_count;
 };
 
-#define FASTLED_BRIGHTNESS 255
+// Let's not push buck converters too much. This still yelds super bright light and can drive
+// 5m of WS2815s (300 pixels) just under 2.8 A
+#define FASTLED_BRIGHTNESS 200
+
 // 1 pixel = RGB = 3 Art-Net fixture channels
 #define COLOR_CHANNELS 3
 // Red channel offset
